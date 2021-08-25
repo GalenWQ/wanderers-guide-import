@@ -145,15 +145,21 @@ async function importCharacter(targetActor, jsonBuild) {
     }
   }
 
-  // let feats = jsonBuild.build.feats.map((feat) => feat.value.name);
-  // let featsToAdd = [];
-  // for (const item of await game.packs.get("pf2e.feats-srd").getDocuments()) {
-  //   if (feats.includes(item.data.name)) {
-  //     console.log(item);
-  //     featsToAdd.push(item.data);
-  //   }
-  // }
-  // await targetActor.createEmbeddedDocuments("Item", featsToAdd);
+  let feats = jsonBuild.build.feats.map((feat) => feat.value.name);
+  let featsToAdd = [];
+  for (const item of await game.packs.get("pf2e.feats-srd").getDocuments()) {
+    if (feats.includes(item.data.name)) {
+      const clonedData = JSON.parse(JSON.stringify(item.data));
+      const feat = jsonBuild.build.feats.filter((feat) => feat.value.name == clonedData.name);
+      const location = getFoundryFeatLocation(feat[0]);
+      if (location != null) {
+        console.log(clonedData.name + " " + location);
+        clonedData.data.location = location;
+      }
+      featsToAdd.push(clonedData);
+    }
+  }
+  await targetActor.createEmbeddedDocuments("Item", featsToAdd);
 }
 
 async function addClassFeatureItems(targetActor, classFeatureIDs) {
@@ -242,4 +248,21 @@ function parseKeyAbility(jsonBuild) {
 
 function getAbilityAbbreviation(ability) {
   return ability.toLowerCase().substring(0, 3);
+}
+
+function getFoundryFeatLocation(feat) {
+  if (feat.sourceType == "ancestry") {
+    return "ancestry-" + feat.sourceLevel;
+  } else if (feat.sourceType == "background") {
+    return "skill-BG";
+  } else if (feat.sourceType == "class") {
+    if (feat.value.genericType == "SKILL-FEAT") {
+      return "skill-" + feat.sourceLevel;
+    } else if (feat.value.genericType == "GENERAL-FEAT") {
+      return "general-" + feat.sourceLevel;
+    } else {
+      return "class-" + feat.sourceLevel;
+    }
+  }
+  return null;
 }
