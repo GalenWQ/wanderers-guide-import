@@ -1,0 +1,12 @@
+{
+  "name": "wanderers-guide-import",
+  "title": "Wanderer's Guide Import",
+  "description": "A simple module created as a demo for working in the Foundry Virtual Tabletop framework.",
+  "author": "Troublesmith",
+  "version": "0.0.1",
+  "minimumCoreVersion": "0.8.6",
+  "compatibleCoreVersion": "0.8.9",
+  "scripts": [
+  		"wg-import.js"
+  	]
+}
