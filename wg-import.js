@@ -145,10 +145,16 @@ async function importCharacter(targetActor, jsonBuild) {
     }
   }
 
-  let feats = jsonBuild.build.feats.map((feat) => feat.value.name);
+  for (const item of await game.packs.get("pf2e.ancestryfeatures").getDocuments ()) {
+    if (item.data.name == jsonBuild.character._heritage.name) {
+      await targetActor.createEmbeddedDocuments("Item", [item.data]);
+    }
+  }
+
+  let featNames = jsonBuild.build.feats.map((feat) => feat.value.name);
   let featsToAdd = [];
   for (const item of await game.packs.get("pf2e.feats-srd").getDocuments()) {
-    if (feats.includes(item.data.name)) {
+    if (featNames.includes(item.data.name)) {
       const clonedData = JSON.parse(JSON.stringify(item.data));
       const feat = jsonBuild.build.feats.filter((feat) => feat.value.name == clonedData.name);
       const location = getFoundryFeatLocation(feat[0]);
@@ -160,6 +166,26 @@ async function importCharacter(targetActor, jsonBuild) {
     }
   }
   await targetActor.createEmbeddedDocuments("Item", featsToAdd);
+
+  let itemsToAdd = [];
+  for (const item of await game.packs.get("pf2e.equipment-srd").getDocuments()) {
+    for (const invItem of jsonBuild.invItems) {
+      //TODO: handle rope and other non-matching items
+      if (item.data.name.toLowerCase() == invItem.name.toLowerCase()) {
+        console.log("ITEM:");
+        console.log (item);
+        if (item.data.type != "kit") {
+          const clonedData = JSON.parse(JSON.stringify(item.data));
+          clonedData.data.quantity.value = invItem.quantity;
+          itemsToAdd.push(clonedData);
+        } else {
+          itemsToAdd.push(item.data);
+        }
+        break;
+      }
+    }
+  }
+  await targetActor.createEmbeddedDocuments("Item", itemsToAdd);
 }
 
 async function addClassFeatureItems(targetActor, classFeatureIDs) {
