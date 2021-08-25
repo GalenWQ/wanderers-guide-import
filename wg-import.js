@@ -1,5 +1,10 @@
 const abilityScores = ["Strength", "Dexterity", "Constitution", "Intelligence", "Wisdom", "Charisma"];
 var applyChanges = !1;
+const pbcolor1 = "color: #7bf542",
+    pbcolor2 = "color: #d8eb34",
+    pbcolor3 = "color: #ffffff",
+    pbcolor4 = "color: #cccccc",
+    pbcolor5 = "color: #ff0000";
 
 console.log("Hello World! This code runs immediately when the file is loaded.");
 
@@ -61,7 +66,10 @@ function validateInput(targetActor, str) {
   //TODO: move back into try block
 }
 
-function importCharacter(targetActor, jsonBuild) {
+async function importCharacter(targetActor, jsonBuild) {
+  console.log("%cWanderer's Guide Import | %cDeleting all items", pbcolor1, pbcolor4);
+  await targetActor.deleteEmbeddedDocuments("Item", ["123"], { deleteAll: !0 });
+  console.log(targetActor);
   targetActor.update({
     name: jsonBuild.character.name,
     "token.name": jsonBuild.character.name,
@@ -107,6 +115,56 @@ function importCharacter(targetActor, jsonBuild) {
     "data.attributes.perception.rank": getProficiencyValue(jsonBuild.profs.Perception),
     "data.attributes.classDC.rank": getProficiencyValue(jsonBuild.profs.Class_DC),
   });
+
+  let classFeatureIDs = [];
+  console.log("%cWanderer's Guide Import | %cSetting class to: " + jsonBuild.character._class.name, pbcolor1, pbcolor4);
+  for (const item of await game.packs.get("pf2e.classes").getDocuments()) {
+    if (item.data.name == jsonBuild.character._class.name) {
+      console.log(item);
+      await targetActor.createEmbeddedDocuments("Item", [item.data]);
+      for (const classFeatureItem in item.data.data.items) {
+        if (jsonBuild.character.level >= item.data.data.items[classFeatureItem].level) {
+          classFeatureIDs.push(item.data.data.items[classFeatureItem].id);
+        }
+      }
+    }
+  }
+  addClassFeatureItems(targetActor, classFeatureIDs);
+
+  for (const item of await game.packs.get("pf2e.backgrounds").getDocuments()) {
+    if (item.data.name == jsonBuild.character._background.name) {
+      console.log(item);
+      await targetActor.createEmbeddedDocuments("Item", [item.data]);
+    }
+  }
+
+  for (const item of await game.packs.get("pf2e.ancestries").getDocuments()) {
+    if (item.data.name == jsonBuild.character._ancestry.name) {
+      console.log(item);
+      await targetActor.createEmbeddedDocuments("Item", [item.data]);
+    }
+  }
+
+  // let feats = jsonBuild.build.feats.map((feat) => feat.value.name);
+  // let featsToAdd = [];
+  // for (const item of await game.packs.get("pf2e.feats-srd").getDocuments()) {
+  //   if (feats.includes(item.data.name)) {
+  //     console.log(item);
+  //     featsToAdd.push(item.data);
+  //   }
+  // }
+  // await targetActor.createEmbeddedDocuments("Item", featsToAdd);
+}
+
+async function addClassFeatureItems(targetActor, classFeatureIDs) {
+  let featuresToAdd = [];
+  for (const item of await game.packs.get("pf2e.classfeatures").getDocuments()) {
+    if (classFeatureIDs.includes(item.id)) {
+      console.log(item);
+      featuresToAdd.push(item.data);
+    }
+  }
+  await targetActor.createEmbeddedDocuments("Item", featuresToAdd);
 }
 
 function getSizeValue(size) {
