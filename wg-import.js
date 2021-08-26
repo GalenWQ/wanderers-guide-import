@@ -173,6 +173,7 @@ async function importCharacter(targetActor, jsonBuild) {
   let itemsToAdd = [];
   for (const item of await game.packs.get("pf2e.equipment-srd").getDocuments()) {
     for (const invItem of jsonBuild.invItems) {
+
       //TODO: weapon and armor runes??
       const itemName = matchItemName(invItem.name);
       if (item.data.name.toLowerCase() == itemName.toLowerCase()) {
@@ -181,7 +182,7 @@ async function importCharacter(targetActor, jsonBuild) {
         if (item.data.type != "kit") {
           const clonedData = JSON.parse(JSON.stringify(item.data));
           clonedData.data.quantity.value = invItem.quantity;
-          if (invItem.id == equippedArmorID || invItem.id == equippedShieldID) {
+          if (invItem.id == equippedArmorID || invItem.id == equippedShieldID || (invItem.itemIsWeapon == 1 && invItem.name != "Fist")) {
             console.log ("EQUIPPED");
             clonedData.data.equipped.value = true;
           }
@@ -333,6 +334,10 @@ function matchItemName(itemName) {
         { name: "Wayfinder (hummingbird)", newname: "Hummingbird Wayfinder" },
         { name: "Wayfinder (homeward)", newname: "Homeward Wayfinder" },
         { name: "Dragon's Breath Potion (wyrm)", newname: "Red Dragon's Breath Potion (Wyrm)" },
+        { name: "Gold (gp)", newname: "Gold Pieces" },
+        { name: "Silver (sp)", newname: "Silver Pieces" },
+        { name: "Copper (cp)", newname: "Copper Pieces" },
+        { name: "Platinum (pp)", newname: "Platinum Pieces" },
         { name: "", newname: "" },
     ];
     var newNameIdx = changeNames.findIndex(function (item) {
