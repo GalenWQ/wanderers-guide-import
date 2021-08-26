@@ -167,16 +167,24 @@ async function importCharacter(targetActor, jsonBuild) {
   }
   await targetActor.createEmbeddedDocuments("Item", featsToAdd);
 
+  let equippedArmorID = jsonBuild.inventory.equippedArmorInvItemID;
+  let equippedShieldID = jsonBuild.inventory.equippedShieldInvItemID;
+
   let itemsToAdd = [];
   for (const item of await game.packs.get("pf2e.equipment-srd").getDocuments()) {
     for (const invItem of jsonBuild.invItems) {
-      //TODO: handle rope and other non-matching items
-      if (item.data.name.toLowerCase() == invItem.name.toLowerCase()) {
+      //TODO: weapon and armor runes??
+      const itemName = matchItemName(invItem.name);
+      if (item.data.name.toLowerCase() == itemName.toLowerCase()) {
         console.log("ITEM:");
         console.log (item);
         if (item.data.type != "kit") {
           const clonedData = JSON.parse(JSON.stringify(item.data));
           clonedData.data.quantity.value = invItem.quantity;
+          if (invItem.id == equippedArmorID || invItem.id == equippedShieldID) {
+            console.log ("EQUIPPED");
+            clonedData.data.equipped.value = true;
+          }
           itemsToAdd.push(clonedData);
         } else {
           itemsToAdd.push(item.data);
@@ -291,4 +299,44 @@ function getFoundryFeatLocation(feat) {
     }
   }
   return null;
+}
+
+function matchItemName(itemName) {
+  if (itemName.endsWith("(chunk)")) {
+    return itemName.replace("(chunk)", "Chunk");
+  } else if (itemName.endsWith("(ingot)")) {
+    return itemName.replace("(chunk)", "Ingot");
+  }
+  //TODO: scrolls and wands??
+  const changeNames = [
+        { name: "Mug (wooden)", newname: "Mug" },
+        { name: "Rations (1 week)", newname: "Rations" },
+        { name: "Playing Cards (marked)", newname: "Marked Playing Cards" },
+        { name: "Rope (50 feet)", newname: "Rope" },
+        { name: "Predictable Silver (sp)", newname: "Predictable Silver Piece" },
+        { name: "Wayfinder (archaic)", newname: "Archaic Wayfinder" },
+        { name: "Astrolabe (mariner's)", newname: "Mariner's Astrolabe" },
+        { name: "Wayfinder (fashionable)", newname: "Fashionable Wayfinder" },
+        { name: "Book of Translation (advanced)", newname: "Advanced Book of Translation (Tien)" },
+        { name: "Hype (diluted)", newname: "Diluted Hype" },
+        { name: "Deteriorating Dust (extended)", newname: "Extended Deteriorating Dust" },
+        { name: "Wayfinder (chronicler)", newname: "Chronicler Wayfinder" },
+        { name: "Dragon's Breath Potion (young)", newname: "Red Dragon's Breath Potion (Young)" },
+        { name: "Deteriorating Dust (caustic)", newname: "Caustic Deteriorating Dust" },
+        { name: "Wayfinder (elemental - air)", newname: "Elemental Wayfinder (Air)" },
+        { name: "Wayfinder (elemental - fire)", newname: "Elemental Wayfinder (Fire)" },
+        { name: "Wayfinder (elemental - earth)", newname: "Elemental Wayfinder (Earth)" },
+        { name: "Wayfinder (elemental - water)", newname: "Elemental Wayfinder (Water)" },
+        { name: "Wayfinder (razmiri)", newname: "Razmiri Wayfinder" },
+        { name: "Dragon's Breath Potion (adult)", newname: "Red Dragon's Breath Potion (Adult)" },
+        { name: "Hype (plasma)", newname: "Plasma Hype" },
+        { name: "Wayfinder (hummingbird)", newname: "Hummingbird Wayfinder" },
+        { name: "Wayfinder (homeward)", newname: "Homeward Wayfinder" },
+        { name: "Dragon's Breath Potion (wyrm)", newname: "Red Dragon's Breath Potion (Wyrm)" },
+        { name: "", newname: "" },
+    ];
+    var newNameIdx = changeNames.findIndex(function (item) {
+        return item.name == itemName;
+    });
+    return -1 < newNameIdx ? changeNames[newNameIdx].newname : itemName;
 }
