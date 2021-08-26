@@ -6,15 +6,14 @@ const pbcolor1 = "color: #7bf542",
     pbcolor4 = "color: #cccccc",
     pbcolor5 = "color: #ff0000";
 
-console.log("Hello World! This code runs immediately when the file is loaded.");
-
-Hooks.on("init", function() {
-  console.log("This code runs once the Foundry VTT software begins it's initialization workflow.");
-});
-
-Hooks.on("ready", function() {
-  console.log("This code runs once core initialization is ready and game data is available.");
-});
+//TODO: spellcasting
+//TODO: custom proficiencies/bonus feats
+//TODO: variant rules
+//TODO: lores
+//TODO: containers
+//TODO: animal companions/familiars?
+//TODO: instructions/warnings
+//TODO: README
 
 Hooks.on("renderActorSheet", async function (obj, html) {
         const actor = obj.actor;
@@ -195,6 +194,10 @@ async function importCharacter(targetActor, jsonBuild) {
     }
   }
   await targetActor.createEmbeddedDocuments("Item", itemsToAdd);
+
+  // for (const item of jsonBuild.metaData) {
+    
+  // }
 }
 
 async function addClassFeatureItems(targetActor, classFeatureIDs) {
