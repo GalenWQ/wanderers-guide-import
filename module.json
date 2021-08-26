@@ -8,5 +8,8 @@
   "compatibleCoreVersion": "0.8.9",
   "scripts": [
   		"wg-import.js"
-  	]
+  	],
+  "license": "MIT",
+  "url": "https://github.com/GalenWQ/wanderers-guide-import",
+  "manifest": "https://raw.githubusercontent.com/GalenWQ/wanderers-guide-import/master/module.json",
 }

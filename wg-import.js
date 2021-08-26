@@ -14,6 +14,7 @@ const pbcolor1 = "color: #7bf542",
 //TODO: animal companions/familiars?
 //TODO: instructions/warnings
 //TODO: README
+//TODO: refactor and minify
 
 Hooks.on("renderActorSheet", async function (obj, html) {
         const actor = obj.actor;
@@ -196,7 +197,7 @@ async function importCharacter(targetActor, jsonBuild) {
   await targetActor.createEmbeddedDocuments("Item", itemsToAdd);
 
   // for (const item of jsonBuild.metaData) {
-    
+
   // }
 }
 
