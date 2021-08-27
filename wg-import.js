@@ -116,31 +116,16 @@ async function importCharacter(targetActor, jsonBuild) {
     "data.attributes.classDC.rank": getProficiencyValue(jsonBuild.profs.Class_DC),
   });
 
-  let classFeatureIDs = [];
-  console.log("%cWanderer's Guide Import | %cSetting class to: " + jsonBuild.character._class.name, pbcolor1, pbcolor4);
-  for (const item of await game.packs.get("pf2e.classes").getDocuments()) {
-    if (item.data.name == jsonBuild.character._class.name) {
-      console.log(item);
-      await targetActor.createEmbeddedDocuments("Item", [item.data]);
-      for (const classFeatureItem in item.data.data.items) {
-        if (jsonBuild.character.level >= item.data.data.items[classFeatureItem].level) {
-          classFeatureIDs.push(item.data.data.items[classFeatureItem].id);
-        }
-      }
-    }
-  }
-  addClassFeatureItems(targetActor, classFeatureIDs);
+  addClass(targetActor, jsonBuild.character._class.name, jsonBuild.character.level);
 
   for (const item of await game.packs.get("pf2e.backgrounds").getDocuments()) {
     if (item.data.name == jsonBuild.character._background.name) {
-      console.log(item);
       await targetActor.createEmbeddedDocuments("Item", [item.data]);
     }
   }
 
   for (const item of await game.packs.get("pf2e.ancestries").getDocuments()) {
     if (item.data.name == jsonBuild.character._ancestry.name) {
-      console.log(item);
       await targetActor.createEmbeddedDocuments("Item", [item.data]);
     }
   }
@@ -151,65 +136,89 @@ async function importCharacter(targetActor, jsonBuild) {
     }
   }
 
-  let featNames = jsonBuild.build.feats.map((feat) => feat.value.name);
-  let featsToAdd = [];
-  for (const item of await game.packs.get("pf2e.feats-srd").getDocuments()) {
-    if (featNames.includes(item.data.name)) {
-      const clonedData = JSON.parse(JSON.stringify(item.data));
-      const feat = jsonBuild.build.feats.filter((feat) => feat.value.name == clonedData.name);
-      const location = getFoundryFeatLocation(feat[0]);
-      if (location != null) {
-        console.log(clonedData.name + " " + location);
-        clonedData.data.location = location;
-      }
-      featsToAdd.push(clonedData);
-    }
-  }
-  await targetActor.createEmbeddedDocuments("Item", featsToAdd);
+  addFeats(targetActor, jsonBuild.build.feats);
 
-  let equippedArmorID = jsonBuild.inventory.equippedArmorInvItemID;
-  let equippedShieldID = jsonBuild.inventory.equippedShieldInvItemID;
-
-  let itemsToAdd = [];
-  for (const item of await game.packs.get("pf2e.equipment-srd").getDocuments()) {
-    for (const invItem of jsonBuild.invItems) {
-
-      //TODO: weapon and armor runes??
-      const itemName = matchItemName(invItem.name);
-      if (item.data.name.toLowerCase() == itemName.toLowerCase()) {
-        console.log("ITEM:");
-        console.log (item);
-        if (item.data.type != "kit") {
-          const clonedData = JSON.parse(JSON.stringify(item.data));
-          clonedData.data.quantity.value = invItem.quantity;
-          if (invItem.id == equippedArmorID || invItem.id == equippedShieldID || (invItem.itemIsWeapon == 1 && invItem.name != "Fist")) {
-            console.log ("EQUIPPED");
-            clonedData.data.equipped.value = true;
-          }
-          itemsToAdd.push(clonedData);
-        } else {
-          itemsToAdd.push(item.data);
-        }
-        break;
-      }
-    }
-  }
-  await targetActor.createEmbeddedDocuments("Item", itemsToAdd);
+  addItems(targetActor, jsonBuild);
 
   // for (const item of jsonBuild.metaData) {
 
   // }
 }
 
+async function addClass(targetActor, className, level) {
+  let classFeatureIDs = [];
+  console.log("%cWanderer's Guide Import | %cSetting class to: " + className, pbcolor1, pbcolor4);
+  for (const item of await game.packs.get("pf2e.classes").getDocuments()) {
+    if (item.data.name == className) {
+      //console.log(item);
+      await targetActor.createEmbeddedDocuments("Item", [item.data]);
+      for (const classFeatureItem in item.data.data.items) {
+        if (level >= item.data.data.items[classFeatureItem].level) {
+          classFeatureIDs.push(item.data.data.items[classFeatureItem].id);
+        }
+      }
+    }
+  }
+  addClassFeatureItems(targetActor, classFeatureIDs);
+}
+
 async function addClassFeatureItems(targetActor, classFeatureIDs) {
   let featuresToAdd = [];
   for (const item of await game.packs.get("pf2e.classfeatures").getDocuments()) {
     if (classFeatureIDs.includes(item.id)) {
-      console.log(item);
+      //console.log(item);
       featuresToAdd.push(item.data);
     }
   }
   await targetActor.createEmbeddedDocuments("Item", featuresToAdd);
+}
+
+async function addFeats(targetActor, feats) {
+  let featNames = new Set(feats.map((feat) => feat.value.name));
+  let usedLocations = [];
+  let featsToAdd = [];
+  for (const item of await game.packs.get("pf2e.feats-srd").getDocuments()) {
+    if (featNames.delete(item.data.name)) {
+      const clonedData = JSON.parse(JSON.stringify(item.data));
+      const feat = feats.find((feat) => feat.value.name == clonedData.name);
+      const location = getFoundryFeatLocation(feat);
+      if (location != null && !usedLocations.includes(location)) {
+        //console.log(clonedData.name + " " + location);
+        clonedData.data.location = location;
+        usedLocations.push(location);
+      }
+      featsToAdd.push(clonedData);
+    }
+  }
+  console.log("-- Unimported Feats --");
+  console.log(featNames);
+  await targetActor.createEmbeddedDocuments("Item", featsToAdd);
+}
+
+async function addItems(targetActor, jsonBuild) {
+  let equippedArmorID = jsonBuild.inventory.equippedArmorInvItemID;
+  let equippedShieldID = jsonBuild.inventory.equippedShieldInvItemID;
+
+  let itemNames = new Set(jsonBuild.invItems.map((item) => matchItemName(item.name).toLowerCase()));
+  let itemsToAdd = [];
+  for (const item of await game.packs.get("pf2e.equipment-srd").getDocuments()) {
+    if (itemNames.delete(item.data.name.toLowerCase())) {
+      const invItem = jsonBuild.invItems.find((invItem) => item.data.name.toLowerCase() == matchItemName(invItem.name).toLowerCase());
+      if (item.data.type != "kit") {
+          const clonedData = JSON.parse(JSON.stringify(item.data));
+          clonedData.data.quantity.value = invItem.quantity;
+          if (invItem.id == equippedArmorID || invItem.id == equippedShieldID || (invItem.itemIsWeapon == 1 && invItem.name != "Fist")) {
+            clonedData.data.equipped.value = true;
+          }
+          itemsToAdd.push(clonedData);
+      } else {
+        itemsToAdd.push(item.data);
+      }
+    }
+  }
+  console.log("-- Unimported Items --");
+  console.log(itemNames);
+  await targetActor.createEmbeddedDocuments("Item", itemsToAdd);
 }
 
 function getSizeValue(size) {
@@ -269,17 +278,17 @@ function parseSenses(senses) {
 function parseKeyAbility(jsonBuild) {
   const abilities = jsonBuild.character._class.keyAbility.split(" or ");
   if (abilities.length == 1) {
-    console.log(jsonBuild.character._class.keyAbility);
+    //console.log(jsonBuild.character._class.keyAbility);
     return getAbilityAbbreviation(jsonBuild.character._class.keyAbility);
   } else {
     const firstAbility = JSON.parse(jsonBuild.stats.totalAbilityScores)[abilityScores.indexOf(abilities[0])];
     const secondAbility = JSON.parse(jsonBuild.stats.totalAbilityScores)[abilityScores.indexOf(abilities[1])];
 
     if (secondAbility.Score > firstAbility.Score) {
-      console.log(secondAbility.Name);
+      //console.log(secondAbility.Name);
       return getAbilityAbbreviation(secondAbility.Name);
     } else {
-      console.log(firstAbility.Name);
+      //console.log(firstAbility.Name);
       return getAbilityAbbreviation(firstAbility.Name);
     }
   }
@@ -293,7 +302,7 @@ function getFoundryFeatLocation(feat) {
   if (feat.sourceType == "ancestry") {
     return "ancestry-" + feat.sourceLevel;
   } else if (feat.sourceType == "background") {
-    return "skill-BG";
+    return "skill-background";
   } else if (feat.sourceType == "class") {
     if (feat.value.genericType == "SKILL-FEAT") {
       return "skill-" + feat.sourceLevel;
