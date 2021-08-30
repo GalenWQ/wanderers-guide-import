@@ -136,13 +136,41 @@ async function importCharacter(targetActor, jsonBuild) {
     }
   }
 
-  addFeats(targetActor, jsonBuild.build.feats);
+  let featNames = await addFeats(targetActor, jsonBuild.build.feats);
+  console.log("-- Unimported Feats --");
+  console.log(featNames);
 
-  addItems(targetActor, jsonBuild);
+  let itemNames = await addItems(targetActor, jsonBuild);
+  console.log("-- Unimported Items --");
+  console.log(itemNames);
 
-  // for (const item of jsonBuild.metaData) {
+  let content = `
+      <div>
+        <p>The following items could not be automatically imported. Please check whether you need to add them manually:</p>
+      <div>
+      <hr/>`;
 
-  // }
+  if (featNames.size > 0) {
+    content += `<h2>Feats</h2>
+      <p>`+Array.from(featNames).join(", ")+`</p>`;
+  }
+
+  if (itemNames.size > 0) {
+    content += `<h2>Equipment</h2>
+      <p>`+Array.from(itemNames).join(", ")+`</p>`;
+  }
+
+  content += `<h2>Spellcasting</h2>
+      <p>Wanderer's Guide Import does not currently support spellcasting. Please add any spells manually.</p>
+      <br><br>
+      `;
+
+  new Dialog({
+        title: "Import Complete",
+        content: content,
+        buttons: { no: { icon: "<i class='fas fa-check'></i>", label: "Done" } },
+        default: "no",
+    }).render(!0);
 }
 
 async function addClass(targetActor, className, level) {
@@ -174,7 +202,7 @@ async function addClassFeatureItems(targetActor, classFeatureIDs) {
 }
 
 async function addFeats(targetActor, feats) {
-  let featNames = new Set(feats.map((feat) => feat.value.name));
+  const featNames = new Set(feats.map((feat) => feat.value.name));
   let usedLocations = [];
   let featsToAdd = [];
   for (const item of await game.packs.get("pf2e.feats-srd").getDocuments()) {
@@ -190,16 +218,15 @@ async function addFeats(targetActor, feats) {
       featsToAdd.push(clonedData);
     }
   }
-  console.log("-- Unimported Feats --");
-  console.log(featNames);
   await targetActor.createEmbeddedDocuments("Item", featsToAdd);
+  return featNames;
 }
 
 async function addItems(targetActor, jsonBuild) {
   let equippedArmorID = jsonBuild.inventory.equippedArmorInvItemID;
   let equippedShieldID = jsonBuild.inventory.equippedShieldInvItemID;
 
-  let itemNames = new Set(jsonBuild.invItems.map((item) => matchItemName(item.name).toLowerCase()));
+  const itemNames = new Set(jsonBuild.invItems.map((item) => matchItemName(item.name).toLowerCase()));
   let itemsToAdd = [];
   for (const item of await game.packs.get("pf2e.equipment-srd").getDocuments()) {
     if (itemNames.delete(item.data.name.toLowerCase())) {
@@ -216,9 +243,8 @@ async function addItems(targetActor, jsonBuild) {
       }
     }
   }
-  console.log("-- Unimported Items --");
-  console.log(itemNames);
   await targetActor.createEmbeddedDocuments("Item", itemsToAdd);
+  return itemNames;
 }
 
 function getSizeValue(size) {
