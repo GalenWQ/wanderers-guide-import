@@ -33,37 +33,68 @@ async function beginImport(targetActor) {
         title: "Wanderer's Guide Import",
         content: `
       <div>
-        <p>Paste the full text of a .guidechar file below:</p>
+        <p>Export your character from Wanderer's Guide:</p>
+        <p>1) go to your <a href="https://wanderersguide.app/profile/characters">Wanderer's Guide character list</a></p>
+        <p>2) click "Options" under the character you want to export</p> 
+        <p>3) select "Export". This will download a file called (your character's name).guidechar
       <div>
       <hr/>
       <form>
-        <textarea id="inputArea"></textarea>
+        <label for="guidechar">Select your .guidechar file:</label>
+        <input type="file" id="guidechar" name="guidechar" accept=".guidechar">
+        <br>
+        <p>OR</p>
+        <label for="guidechar-text">Open in a text editor and paste the full text of your .guidechar file here:</label>
+        <textarea id="guidechar-text"></textarea>
       </form>
       <br><br>
-      <style>
-
-      </style>
       `,
         buttons: { yes: { icon: "<i class='fas fa-check'></i>", label: "Import", callback: () => (applyChanges = !0) }, no: { icon: "<i class='fas fa-times'></i>", label: "Cancel" } },
         default: "yes",
         close: (html) => {
             applyChanges &&
-                (validateInput(targetActor, html.find('[id="inputArea"]')[0].value))
+                (validateInput(targetActor, html.find('[id="guidechar"]')[0].files[0], html.find('[id="guidechar-text"]')[0].value))
         },
     }).render(!0);
 }
 
-function validateInput(targetActor, str) {
-  var jsonBuild;
-  try {
-    jsonBuild = JSON.parse(str);
-    console.log(jsonBuild.character.name)
-  } catch (e) {
-    ui.notifications.warn("guidechar file invalid");
-    return;
+function validateInput(targetActor, guidechar, guidechar_text) {
+  console.log(guidechar_text);
+  if (guidechar_text && guidechar_text != "") {
+    var str = guidechar_text;
+    console.log("File contents: " + str);
+    var jsonBuild;
+    try {
+      jsonBuild = JSON.parse(str);
+      console.log(jsonBuild.character.name)
+    } catch (e) {
+      ui.notifications.warn("guidechar file invalid");
+      return;
+    }
+    importCharacter(targetActor, jsonBuild);
+  } else {
+    let reader = new FileReader();
+
+    reader.onload = function(event) {
+      var str = event.target.result;
+      console.log("File contents: " + str);
+      var jsonBuild;
+      try {
+        jsonBuild = JSON.parse(str);
+        console.log(jsonBuild.character.name)
+      } catch (e) {
+        ui.notifications.warn("guidechar file invalid");
+        return;
+      }
+      importCharacter(targetActor, jsonBuild);
+    };
+
+    reader.onerror = function(event) {
+        console.error("File could not be read! Code " + event.target.error.code);
+    };
+
+    reader.readAsText(guidechar);
   }
-  importCharacter(targetActor, jsonBuild);
-  //TODO: move back into try block
 }
 
 async function importCharacter(targetActor, jsonBuild) {
