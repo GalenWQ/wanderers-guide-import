@@ -8,11 +8,10 @@ const pbcolor1 = "color: #7bf542",
 
 //TODO: spellcasting
 //TODO: custom proficiencies/bonus feats
-//TODO: variant rules
 //TODO: lores
 //TODO: containers
+//TODO: update existing characters
 //TODO: animal companions/familiars?
-//TODO: instructions/warnings
 //TODO: README
 //TODO: refactor and minify
 
@@ -33,12 +32,13 @@ async function beginImport(targetActor) {
         title: "Wanderer's Guide Import",
         content: `
       <div>
-        <p>Export your character from Wanderer's Guide:</p>
+        <h3>Export your character from Wanderer's Guide:</h3>
         <p>1) go to your <a href="https://wanderersguide.app/profile/characters">Wanderer's Guide character list</a></p>
         <p>2) click "Options" under the character you want to export</p> 
         <p>3) select "Export". This will download a file called (your character's name).guidechar
       <div>
       <hr/>
+      <h3>To import (this will overwrite your current character sheet):
       <form>
         <label for="guidechar">Select your .guidechar file:</label>
         <input type="file" id="guidechar" name="guidechar" accept=".guidechar">
@@ -59,6 +59,7 @@ async function beginImport(targetActor) {
 }
 
 function validateInput(targetActor, guidechar, guidechar_text) {
+  applyChanges = !1;
   console.log(guidechar_text);
   if (guidechar_text && guidechar_text != "") {
     var str = guidechar_text;
@@ -147,6 +148,7 @@ async function importCharacter(targetActor, jsonBuild) {
     "data.attributes.classDC.rank": getProficiencyValue(jsonBuild.profs.Class_DC),
   });
 
+  addLoreSkills(targetActor, jsonBuild.profs);
   addClass(targetActor, jsonBuild.character._class.name, jsonBuild.character.level);
 
   for (const item of await game.packs.get("pf2e.backgrounds").getDocuments()) {
@@ -204,6 +206,16 @@ async function importCharacter(targetActor, jsonBuild) {
     }).render(!0);
 }
 
+async function addLoreSkills(targetActor, profs) {
+  let loresToAdd = [];
+  for (const prof in profs) {
+    if (prof.endsWith("Lore")) {
+      loresToAdd.push({ name: prof, type: "lore", data: { proficient: { value: getProficiencyValue(profs[prof]) }, featType: "", mod: {value: 0}, item: {value: 0} } });
+    }
+  }
+  await targetActor.createEmbeddedDocuments("Item", loresToAdd);
+}
+
 async function addClass(targetActor, className, level) {
   let classFeatureIDs = [];
   console.log("%cWanderer's Guide Import | %cSetting class to: " + className, pbcolor1, pbcolor4);
@@ -249,7 +261,14 @@ async function addFeats(targetActor, feats) {
       featsToAdd.push(clonedData);
     }
   }
+  let actionsToAdd = [];
   await targetActor.createEmbeddedDocuments("Item", featsToAdd);
+  for (const item of await game.packs.get("pf2e.actionspf2e").getDocuments()) {
+    if (featNames.delete(item.data.name)) {
+      actionsToAdd.push(item.data);
+    }
+  }
+  await targetActor.createEmbeddedDocuments("Item", actionsToAdd);
   return featNames;
 }
 
@@ -359,7 +378,7 @@ function getFoundryFeatLocation(feat) {
   if (feat.sourceType == "ancestry") {
     return "ancestry-" + feat.sourceLevel;
   } else if (feat.sourceType == "background") {
-    return "skill-background";
+    return "skill-background-";
   } else if (feat.sourceType == "class") {
     if (feat.value.genericType == "SKILL-FEAT") {
       return "skill-" + feat.sourceLevel;
