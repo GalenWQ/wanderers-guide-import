@@ -169,7 +169,7 @@ async function importCharacter(targetActor, jsonBuild) {
     }
   }
 
-  let featNames = await addFeats(targetActor, jsonBuild.build.feats);
+  let featNames = await addFeats(targetActor, jsonBuild.build.feats, jsonBuild.character._background.name);
   console.log("-- Unimported Feats --");
   console.log(featNames);
 
@@ -237,14 +237,13 @@ async function addClassFeatureItems(targetActor, classFeatureIDs) {
   let featuresToAdd = [];
   for (const item of await game.packs.get("pf2e.classfeatures").getDocuments()) {
     if (classFeatureIDs.includes(item.id)) {
-      //console.log(item);
       featuresToAdd.push(item.data);
     }
   }
   await targetActor.createEmbeddedDocuments("Item", featuresToAdd);
 }
 
-async function addFeats(targetActor, feats) {
+async function addFeats(targetActor, feats, backgroundName) {
   const featNames = new Set(feats.map((feat) => feat.value.name));
   let usedLocations = [];
   let featsToAdd = [];
@@ -252,9 +251,12 @@ async function addFeats(targetActor, feats) {
     if (featNames.delete(item.data.name)) {
       const clonedData = JSON.parse(JSON.stringify(item.data));
       const feat = feats.find((feat) => feat.value.name == clonedData.name);
-      const location = getFoundryFeatLocation(feat);
+      let location = getFoundryFeatLocation(feat);
       if (location != null && !usedLocations.includes(location)) {
-        //console.log(clonedData.name + " " + location);
+        if (location == "background-short") {
+          location = targetActor.background.id;
+        }
+        console.log(location);
         clonedData.data.location = location;
         usedLocations.push(location);
       }
@@ -378,7 +380,7 @@ function getFoundryFeatLocation(feat) {
   if (feat.sourceType == "ancestry") {
     return "ancestry-" + feat.sourceLevel;
   } else if (feat.sourceType == "background") {
-    return "skill-background-";
+    return "background-short";
   } else if (feat.sourceType == "class") {
     if (feat.value.genericType == "SKILL-FEAT") {
       return "skill-" + feat.sourceLevel;
