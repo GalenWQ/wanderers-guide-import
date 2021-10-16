@@ -177,6 +177,8 @@ async function importCharacter(targetActor, jsonBuild) {
   console.log("-- Unimported Items --");
   console.log(itemNames);
 
+  addSpells(targetActor, jsonBuild);
+
   let content = `
       <div>
         <p>The following items could not be automatically imported. Please check whether you need to add them manually:</p>
@@ -256,7 +258,6 @@ async function addFeats(targetActor, feats, backgroundName) {
         if (location == "background-short") {
           location = targetActor.background.id;
         }
-        console.log(location);
         clonedData.data.location = location;
         usedLocations.push(location);
       }
@@ -297,6 +298,105 @@ async function addItems(targetActor, jsonBuild) {
   }
   await targetActor.createEmbeddedDocuments("Item", itemsToAdd);
   return itemNames;
+}
+
+async function addSpells(targetActor, jsonBuild) {
+  let spellSources = {};
+  //console.log(jsonBuild.metaData);
+  for (var i = 0; i < jsonBuild.metaData.length; i++) {
+    var item = jsonBuild.metaData[i];
+    if (item.source == "spellLists") {
+      var [source, tradition] = item.value.split("=");
+      if (source in spellSources) {
+        spellSources[source]["tradition"] = tradition.toLowerCase();
+      } else {
+        spellSources[source] = {"tradition": tradition.toLowerCase()};
+      }
+    }
+
+    if (item.source == "spellCastingType") {
+      var [source, type] = item.value.split("=");
+      if (source in spellSources) {
+        spellSources[source]["type"] = type.split("-")[0].toLowerCase();
+      } else {
+        spellSources[source] = {"type": type.split("-")[0].toLowerCase()};
+      }
+    }
+
+    if (item.source == "spellKeyAbilities") {
+      var [source, ability] = item.value.split("=");
+      if (source in spellSources) {
+        spellSources[source]["ability"] = ability.toLowerCase();
+      } else {
+        spellSources[source] = {"ability": ability.toLowerCase()};
+      }
+    }
+
+    if (source in spellSources && !("ability" in spellSources[source])) {
+      spellSources[source]["ability"] = "cha";
+    }
+
+    if (source in spellSources && !("type" in spellSources[source])) {
+      spellSources[source]["type"] = "innate";
+    }
+  }
+
+  for (const source in spellSources) {
+    spellCasterInstance = [{ name: source, type: "spellcastingEntry", data: 
+      { 
+        ability: { type: "String", label: "Spellcasting Ability", value: spellSources[source]["ability"] },
+        // focus: { points: 1, pool: 1 },
+        // proficiency: { value: 2 },
+        // spelldc: { type: "String", label: "Class DC", item: 0 },
+        tradition: { type: "String", label: "Magic Tradition", value: spellSources[source]["tradition"] },
+        prepared: { type: "String", label: "Spellcasting Type", value: spellSources[source]["type"]},
+        slots: {
+            slot0: { max: 0, prepared: [], value: 0 },
+            slot1: { max: 0, prepared: [], value: 0 },
+            slot2: { max: 0, prepared: [], value: 0 },
+            slot3: { max: 0, prepared: [], value: 0 },
+            slot4: { max: 0, prepared: [], value: 0 },
+            slot5: { max: 0, prepared: [], value: 0 },
+            slot6: { max: 0, prepared: [], value: 0 },
+            slot7: { max: 0, prepared: [], value: 0 },
+            slot8: { max: 0, prepared: [], value: 0 },
+            slot9: { max: 0, prepared: [], value: 0 },
+            slot10: { max: 0, prepared: [], value: 0 },
+        },
+        showUnpreparedSpells: { value: !0 },
+      }
+    }];
+    await targetActor.createEmbeddedDocuments("Item", spellCasterInstance);
+  }
+  
+  console.log(spellSources);
+  
+  // (data = {
+  //       ability: { type: "String", label: "Spellcasting Ability", value: spellCaster.ability },
+  //       focus: { points: spellCaster.focusPoints, pool: spellCaster.focusPoints },
+  //       proficiency: { value: spellCaster.proficiency / 2 },
+  //       spelldc: { type: "String", label: "Class DC", item: 0 },
+  //       tradition: { type: "String", label: "Magic Tradition", value: data },
+  //       prepared: { type: "String", label: "Spellcasting Type", value: spellCasterInstance },
+  //       slots: {
+  //           slot0: { max: spellCaster.perDay[0], prepared: [], value: spellCaster.perDay[0] },
+  //           slot1: { max: spellCaster.perDay[1], prepared: [], value: spellCaster.perDay[1] },
+  //           slot2: { max: spellCaster.perDay[2], prepared: [], value: spellCaster.perDay[2] },
+  //           slot3: { max: spellCaster.perDay[3], prepared: [], value: spellCaster.perDay[3] },
+  //           slot4: { max: spellCaster.perDay[4], prepared: [], value: spellCaster.perDay[4] },
+  //           slot5: { max: spellCaster.perDay[5], prepared: [], value: spellCaster.perDay[5] },
+  //           slot6: { max: spellCaster.perDay[6], prepared: [], value: spellCaster.perDay[6] },
+  //           slot7: { max: spellCaster.perDay[7], prepared: [], value: spellCaster.perDay[7] },
+  //           slot8: { max: spellCaster.perDay[8], prepared: [], value: spellCaster.perDay[8] },
+  //           slot9: { max: spellCaster.perDay[9], prepared: [], value: spellCaster.perDay[9] },
+  //           slot10: { max: spellCaster.perDay[10], prepared: [], value: spellCaster.perDay[10] },
+  //       },
+  //       showUnpreparedSpells: { value: !0 },
+  //   }),
+}
+
+function capitalizeFirstLetter(string) {
+  return string.charAt(0).toUpperCase() + string.slice(1).toLowerCase();
 }
 
 function getSizeValue(size) {
