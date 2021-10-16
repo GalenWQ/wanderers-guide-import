@@ -305,98 +305,101 @@ async function addSpells(targetActor, jsonBuild) {
   //console.log(jsonBuild.metaData);
   for (var i = 0; i < jsonBuild.metaData.length; i++) {
     var item = jsonBuild.metaData[i];
-    if (item.source == "spellLists") {
-      var [source, tradition] = item.value.split("=");
-      if (source in spellSources) {
-        spellSources[source]["tradition"] = tradition.toLowerCase();
-      } else {
-        spellSources[source] = {"tradition": tradition.toLowerCase()};
+    if (item.source == "spellLists" || item.source == "spellCastingType" || item.source == "spellKeyAbilities" || item.source == "spellSlots") {
+      var [source, data] = item.value.split("=");
+
+      if (!(source in spellSources)) {
+        spellSources[source] = { "name": source };
       }
-    }
-
-    if (item.source == "spellCastingType") {
-      var [source, type] = item.value.split("=");
-      if (source in spellSources) {
-        spellSources[source]["type"] = type.split("-")[0].toLowerCase();
-      } else {
-        spellSources[source] = {"type": type.split("-")[0].toLowerCase()};
+    
+      if (item.source == "spellLists") {
+        spellSources[source]["tradition"] = data.toLowerCase();
+      } else if (item.source == "spellCastingType") {
+        spellSources[source]["type"] = data.split("-")[0].toLowerCase();
+      } else if (item.source == "spellKeyAbilities") {
+        spellSources[source]["ability"] = data.toLowerCase();
+      } else if (item.source == "spellSlots") {
+        const characterLevel = jsonBuild.character.level;
+        const spellsJSON = JSON.parse(data);
+        const spellLevels = ["firstLevel", "secondLevel", "thirdLevel", "fourthLevel", "fifthLevel", "sixthLevel", "seventhLevel", "eighthLevel", "ninthLevel", "tenthLevel"];
+        for (const spellLevel of spellLevels) {
+          let numSlots = 0;
+          for (const slot of spellsJSON[spellLevel]) {
+            if (slot["level_lock"] <= characterLevel) {
+              if (!("level_cutoff" in slot && slot["level_cutoff"] <= characterLevel)) {
+                numSlots++;
+              }
+            }
+          }
+          spellSources[source][spellLevel] = numSlots;
+        }
       }
-    }
 
-    if (item.source == "spellKeyAbilities") {
-      var [source, ability] = item.value.split("=");
-      if (source in spellSources) {
-        spellSources[source]["ability"] = ability.toLowerCase();
-      } else {
-        spellSources[source] = {"ability": ability.toLowerCase()};
+      if (!("ability" in spellSources[source])) {
+        spellSources[source]["ability"] = "cha";
       }
-    }
 
-    if (source in spellSources && !("ability" in spellSources[source])) {
-      spellSources[source]["ability"] = "cha";
-    }
+      if (!("type" in spellSources[source])) {
+        spellSources[source]["type"] = "innate";
+      }
 
-    if (source in spellSources && !("type" in spellSources[source])) {
-      spellSources[source]["type"] = "innate";
+      if ("tradition" in spellSources[source]) {
+        switch (spellSources[source]["tradition"]) {
+          case "divine":
+            spellSources[source]["proficiency"] = checkProficiencyValue(jsonBuild, "DivineSpellDCs");
+            break;
+          case "arcane":
+            spellSources[source]["proficiency"] = checkProficiencyValue(jsonBuild, "ArcaneSpellDCs");
+            break;
+          case "occult":
+            spellSources[source]["proficiency"] = checkProficiencyValue(jsonBuild, "OccultSpellDCs");
+            break;
+          case "primal":
+            spellSources[source]["proficiency"] = checkProficiencyValue(jsonBuild, "PrimalSpellDCs");
+            break;
+          default:
+            spellSources[source]["proficiency"] = 0;
+        }
+      }
     }
   }
 
   for (const source in spellSources) {
-    spellCasterInstance = [{ name: source, type: "spellcastingEntry", data: 
+    spellCasterInstance = [{ name: capitalizeFirstLetter(source) + " Spells", type: "spellcastingEntry", data: 
       { 
         ability: { type: "String", label: "Spellcasting Ability", value: spellSources[source]["ability"] },
         // focus: { points: 1, pool: 1 },
-        // proficiency: { value: 2 },
+        proficiency: { value: spellSources[source]["proficiency"] },
         // spelldc: { type: "String", label: "Class DC", item: 0 },
         tradition: { type: "String", label: "Magic Tradition", value: spellSources[source]["tradition"] },
         prepared: { type: "String", label: "Spellcasting Type", value: spellSources[source]["type"]},
         slots: {
             slot0: { max: 0, prepared: [], value: 0 },
-            slot1: { max: 0, prepared: [], value: 0 },
-            slot2: { max: 0, prepared: [], value: 0 },
-            slot3: { max: 0, prepared: [], value: 0 },
-            slot4: { max: 0, prepared: [], value: 0 },
-            slot5: { max: 0, prepared: [], value: 0 },
-            slot6: { max: 0, prepared: [], value: 0 },
-            slot7: { max: 0, prepared: [], value: 0 },
-            slot8: { max: 0, prepared: [], value: 0 },
-            slot9: { max: 0, prepared: [], value: 0 },
-            slot10: { max: 0, prepared: [], value: 0 },
+            slot1: { max: spellSources[source]["firstLevel"], prepared: [], value: spellSources[source]["firstLevel"] },
+            slot2: { max: spellSources[source]["secondLevel"], prepared: [], value: spellSources[source]["secondLevel"] },
+            slot3: { max: spellSources[source]["thirdLevel"], prepared: [], value: spellSources[source]["thirdLevel"] },
+            slot4: { max: spellSources[source]["fourthLevel"], prepared: [], value: spellSources[source]["fourthLevel"] },
+            slot5: { max: spellSources[source]["fifthLevel"], prepared: [], value: spellSources[source]["fifthLevel"] },
+            slot6: { max: spellSources[source]["sixthLevel"], prepared: [], value: spellSources[source]["sixthLevel"] },
+            slot7: { max: spellSources[source]["seventhLevel"], prepared: [], value: spellSources[source]["seventhLevel"] },
+            slot8: { max: spellSources[source]["eighthLevel"], prepared: [], value: spellSources[source]["eighthLevel"] },
+            slot9: { max: spellSources[source]["ninthLevel"], prepared: [], value: spellSources[source]["ninthLevel"] },
+            slot10: { max: spellSources[source]["tenthLevel"], prepared: [], value: spellSources[source]["tenthLevel"] },
         },
         showUnpreparedSpells: { value: !0 },
       }
     }];
     await targetActor.createEmbeddedDocuments("Item", spellCasterInstance);
   }
-  
   console.log(spellSources);
-  
-  // (data = {
-  //       ability: { type: "String", label: "Spellcasting Ability", value: spellCaster.ability },
-  //       focus: { points: spellCaster.focusPoints, pool: spellCaster.focusPoints },
-  //       proficiency: { value: spellCaster.proficiency / 2 },
-  //       spelldc: { type: "String", label: "Class DC", item: 0 },
-  //       tradition: { type: "String", label: "Magic Tradition", value: data },
-  //       prepared: { type: "String", label: "Spellcasting Type", value: spellCasterInstance },
-  //       slots: {
-  //           slot0: { max: spellCaster.perDay[0], prepared: [], value: spellCaster.perDay[0] },
-  //           slot1: { max: spellCaster.perDay[1], prepared: [], value: spellCaster.perDay[1] },
-  //           slot2: { max: spellCaster.perDay[2], prepared: [], value: spellCaster.perDay[2] },
-  //           slot3: { max: spellCaster.perDay[3], prepared: [], value: spellCaster.perDay[3] },
-  //           slot4: { max: spellCaster.perDay[4], prepared: [], value: spellCaster.perDay[4] },
-  //           slot5: { max: spellCaster.perDay[5], prepared: [], value: spellCaster.perDay[5] },
-  //           slot6: { max: spellCaster.perDay[6], prepared: [], value: spellCaster.perDay[6] },
-  //           slot7: { max: spellCaster.perDay[7], prepared: [], value: spellCaster.perDay[7] },
-  //           slot8: { max: spellCaster.perDay[8], prepared: [], value: spellCaster.perDay[8] },
-  //           slot9: { max: spellCaster.perDay[9], prepared: [], value: spellCaster.perDay[9] },
-  //           slot10: { max: spellCaster.perDay[10], prepared: [], value: spellCaster.perDay[10] },
-  //       },
-  //       showUnpreparedSpells: { value: !0 },
-  //   }),
 }
 
 function capitalizeFirstLetter(string) {
-  return string.charAt(0).toUpperCase() + string.slice(1).toLowerCase();
+  if (string.split(" ").length == 1) {
+    return string.charAt(0).toUpperCase() + string.slice(1).toLowerCase();
+  } else {
+    return capitalizeFirstLetter(string.substr(0, string.indexOf(" "))) + " " + capitalizeFirstLetter(string.substr(string.indexOf(" ") + 1));
+  }
 }
 
 function getSizeValue(size) {
