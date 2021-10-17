@@ -386,12 +386,29 @@ async function addSpells(targetActor, jsonBuild) {
             slot9: { max: spellSources[source]["ninthLevel"], prepared: [], value: spellSources[source]["ninthLevel"] },
             slot10: { max: spellSources[source]["tenthLevel"], prepared: [], value: spellSources[source]["tenthLevel"] },
         },
-        showUnpreparedSpells: { value: !0 },
+        showUnpreparedSpells: { value: !1 },
       }
     }];
-    await targetActor.createEmbeddedDocuments("Item", spellCasterInstance);
+    const instance = await targetActor.createEmbeddedDocuments("Item", spellCasterInstance);
+    console.log(instance[0].id);
+    spellSources[source]["locationID"] = instance[0].id; 
   }
-  console.log(spellSources);
+  
+  const spellNames = new Set(jsonBuild.spellBookSpells.map((item) => item._spellName.toLowerCase()));
+  console.log(spellNames);
+  let spellsToAdd = [];
+  for (const item of await game.packs.get("pf2e.spells-srd").getDocuments()) {
+    if (spellNames.delete(item.data.name.toLowerCase())) {
+      const clonedData = JSON.parse(JSON.stringify(item.data));
+      const spellItem = jsonBuild.spellBookSpells.find((spellItem) => item.data.name.toLowerCase() == spellItem._spellName.toLowerCase());
+      clonedData.data.level.value = spellItem["spellLevel"];
+      clonedData.data.location.value = spellSources[spellItem["spellSRC"]]["locationID"];
+      console.log(clonedData);
+      spellsToAdd.push(clonedData);
+      console.log(spellItem);
+    }
+  }
+  await targetActor.createEmbeddedDocuments("Item", spellsToAdd);
 }
 
 function capitalizeFirstLetter(string) {
